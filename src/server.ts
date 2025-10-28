@@ -9,7 +9,13 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+//change to allow only from specific origins in production
+app.use(
+  cors({
+    origin: '*', // Allow all origins
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
