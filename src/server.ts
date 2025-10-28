@@ -1,41 +1,20 @@
-// import express from 'express';
-// import cors from 'cors';
-// import dotenv from 'dotenv';
-// import prisma from './database/prismaClient';
-
-// dotenv.config();
-
-// const app = express();
-// app.use(express.json());
-// app.use(cors());
-
-// app.get('/', async (req, res) => {
-//   const dbTest = await prisma.$queryRaw`SELECT NOW()`;
-//   res.json({ message: 'Payment Service Running', dbTime: dbTest });
-// });
-
-// const PORT = process.env.PORT || 4000;
-
-// app.listen(PORT, async () => {
-//   try {
-//     await prisma.$connect();
-//     console.log('✅ Connected to Supabase Postgres');
-//   } catch (err) {
-//     console.error('❌ Database connection failed:', err);
-//   }
-//   console.log(`🚀 Payment Service running at http://localhost:${PORT}`);
-// });
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import walletRoutes from './routes/wallet.routes';
 import transactionRoutes from './routes/transaction.routes';
+import paymentGatewayRoutes from './routes/paymentGateway.routes';
+import paymentRoutes from './routes/payment.routes';
+
 const app: Application = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Raw body for webhooks (needed for signature verification)
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -49,6 +28,8 @@ app.get('/health', (req: Request, res: Response) => {
 // API Routes
 app.use('/api/wallets', walletRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/gateways', paymentGatewayRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
@@ -72,6 +53,10 @@ app.listen(PORT, () => {
   console.log(`🚀 Payment Microservice running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`💰 Wallet API: http://localhost:${PORT}/api/wallets`);
+  console.log(`💳 Transaction API: http://localhost:${PORT}/api/transactions`);
+  console.log(`🔌 Gateway API: http://localhost:${PORT}/api/gateways`);
+  console.log(`💵 Payment API: http://localhost:${PORT}/api/payments`);
 });
+process.stdin.resume(); 
 
 export default app;

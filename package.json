@@ -4,7 +4,7 @@
   "description": "payment microservice",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts",
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:dev": "npx prisma migrate dev --name init",
