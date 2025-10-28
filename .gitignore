@@ -1,0 +1,41 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Prisma
+prisma/generated/
+prisma/client/
+src/generated/
+*.sqlite
+
+# TypeScript
+*.tsbuildinfo
+out/
+coverage/
+
+# Logs
+logs
+*.log
+debug.log
+
+# OS/X
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Misc
+*.pid
+*.seed
+*.tgz

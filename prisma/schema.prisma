@@ -1,0 +1,132 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+//
+// ===== ENUMS =====
+//
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum TransactionType {
+  CHARGE
+  REFUND
+  COMMISSION
+  TAX
+  NET_PAYOUT
+  PAYOUT
+  ADJUSTMENT
+}
+
+enum PayoutStatus {
+  PENDING
+  SCHEDULED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentMethod {
+  CARD
+  UPI
+  WALLET
+  NETBANKING
+  OTHER
+}
+
+//
+// ===== MODELS =====
+//
+
+model Wallet {
+  id            Int           @id @default(autoincrement())
+  userId        Int?
+  balance       Decimal       @default(0)
+  currency      String        @default("INR")
+  type          String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  transactions  Transaction[] @relation("WalletTransactions")
+  payouts       Payout[]      @relation("WalletPayouts")
+}
+
+model Transaction {
+  id               Int              @id @default(autoincrement())
+  externalId       String?          @unique
+  type             TransactionType
+  amount           Decimal
+  currency         String           @default("INR")
+  status           PaymentStatus    @default(PENDING)
+  paymentMethod    PaymentMethod?
+  userId           Int?
+  walletId         Int?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  wallet           Wallet?          @relation("WalletTransactions", fields: [walletId], references: [id])
+  payoutItems      PayoutItem[]     // 👈 back-relation from PayoutItem.transaction
+
+  @@index([userId])
+  @@index([walletId])
+}
+
+model Payout {
+  id             Int           @id @default(autoincrement())
+  instructorId   Int
+  walletId       Int
+  amount         Decimal
+  currency       String        @default("INR")
+  status         PayoutStatus  @default(PENDING)
+  scheduledAt    DateTime?
+  processedAt    DateTime?
+  referenceId    String?
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  wallet         Wallet        @relation("WalletPayouts", fields: [walletId], references: [id])
+  items          PayoutItem[]
+}
+
+model PayoutItem {
+  id            Int        @id @default(autoincrement())
+  payoutId      Int
+  transactionId Int?
+  amount        Decimal
+  releasedAt    DateTime?
+  createdAt     DateTime   @default(now())
+
+  // Relations
+  payout        Payout       @relation(fields: [payoutId], references: [id])
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+}
+
+model PaymentGateway {
+  id          Int          @id @default(autoincrement())
+  name        String
+  type        String
+  credentials Json
+  isActive    Boolean      @default(true)
+  isDefault   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
