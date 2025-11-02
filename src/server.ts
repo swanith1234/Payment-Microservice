@@ -4,7 +4,8 @@ import walletRoutes from './routes/wallet.routes';
 import transactionRoutes from './routes/transaction.routes';
 import paymentGatewayRoutes from './routes/paymentGateway.routes';
 import paymentRoutes from './routes/payment.routes';
-
+import payoutRoutes from './routes/payout.routes';
+import adminRoutes from './routes/admin.routes';
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
@@ -36,7 +37,8 @@ app.use('/api/wallets', walletRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/gateways', paymentGatewayRoutes);
 app.use('/api/payments', paymentRoutes);
-
+app.use('/api/payouts', payoutRoutes);
+app.use('/api/admin', adminRoutes);
 // 404 Handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({

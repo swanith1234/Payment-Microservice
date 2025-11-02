@@ -3,6 +3,14 @@ import { Decimal } from '@prisma/client/runtime/library';
 import gatewayFactory from './gatewayFactory.service';
 import transactionRepository from '../repositories/transaction.repository';
 import transactionService from './transaction.service';
+import platformWalletService from './platformWallet.service';
+import prisma from '../database/prismaClient';
+
+// ✨ Configuration for automatic deductions
+const DEDUCTION_CONFIG = {
+  commissionRate: 15, // 15%
+  taxRate: 18, // 18% GST
+};
 
 export class PaymentService {
   /**
@@ -39,7 +47,7 @@ export class PaymentService {
         walletId: data.walletId,
         externalId: gatewayOrder.id, // Razorpay order ID
         metadata: {
-          ...(data.metadata || {}),
+          ...data.metadata,
           gatewayType: gateway.type,
           gatewayOrderId: gatewayOrder.id,
           receipt,
@@ -75,14 +83,15 @@ export class PaymentService {
     try {
       // Get Razorpay provider
       const { provider, gateway } = await gatewayFactory.getProviderByType('RAZORPAY');
+      console.log('Verifying payment with Razorpay gateway:', gateway);
 
       // Verify signature
-      const isValid = await provider.verifyPayment({
+      const isValid = provider.verifyPayment({
         razorpay_order_id: data.razorpay_order_id,
         razorpay_payment_id: data.razorpay_payment_id,
         razorpay_signature: data.razorpay_signature,
       });
-
+console.log('Payment signature valid:', isValid);
       if (!isValid) {
         throw new Error('Invalid payment signature');
       }
@@ -328,7 +337,7 @@ export class PaymentService {
         walletId: data.walletId,
         externalId: paymentLink.id,
         metadata: {
-          ...(data.metadata || {}),
+          ...data.metadata,
           gatewayType: gateway.type,
           paymentLinkId: paymentLink.id,
           paymentLinkUrl: paymentLink.short_url,

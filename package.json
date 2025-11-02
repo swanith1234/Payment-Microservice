@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:dev": "npx prisma migrate dev --name init",
-    "prisma:generate": "npx prisma generate"
+    "prisma:generate": "npx prisma generate",
+    "test:payout": "mocha payout.tests.js --timeout 15000"
   },
   "author": "swanith",
   "license": "ISC",
@@ -17,12 +18,16 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "razorpay": "^2.9.6"
+    "razorpay": "^2.9.6",
+    "surge": "^0.24.6"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.4",
     "@types/node": "^24.9.1",
+    "axios": "^1.13.1",
+    "chai": "^6.2.0",
+    "mocha": "^11.7.4",
     "nodemon": "^3.1.10",
     "prisma": "^6.18.0",
     "ts-node": "^10.9.2",

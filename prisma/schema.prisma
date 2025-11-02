@@ -1,5 +1,5 @@
-// This is your Prisma schema file
-// Learn more: https://pris.ly/d/prisma-schema
+// This is your updated Prisma schema file
+// Replace your existing schema.prisma with this
 
 generator client {
   provider = "prisma-client-js"
@@ -48,22 +48,41 @@ enum PaymentMethod {
   OTHER
 }
 
+// ✨ NEW: Wallet Types Enum
+enum WalletType {
+  INSTRUCTOR          // Individual instructor earnings
+  STUDENT             // Student wallet (for refunds, credits)
+  PLATFORM_COMMISSION // Platform revenue
+  PLATFORM_TAX        // Tax collected
+  PLATFORM_FEES       // Other platform fees
+  MODULE_LMS          // LMS module specific
+  MODULE_LIMS         // LIMS module specific
+  MODULE_COLLEGE      // College module specific
+  MODULE_HRMS         // HRMS module specific
+}
+
 //
 // ===== MODELS =====
 //
 
 model Wallet {
   id            Int           @id @default(autoincrement())
-  userId        Int?
+  userId        Int?          // NULL for platform wallets
   balance       Decimal       @default(0)
   currency      String        @default("INR")
-  type          String
+  type          WalletType    @default(INSTRUCTOR) // ✨ UPDATED: Use enum
+  moduleId      String?       // ✨ NEW: Track which module owns this
+  metadata      Json?         // ✨ NEW: Additional info
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   // Relations
   transactions  Transaction[] @relation("WalletTransactions")
   payouts       Payout[]      @relation("WalletPayouts")
+
+  @@index([userId])
+  @@index([type])           // ✨ NEW: Index for faster queries
+  @@index([moduleId])       // ✨ NEW: Index for module queries
 }
 
 model Transaction {
@@ -82,10 +101,12 @@ model Transaction {
 
   // Relations
   wallet           Wallet?          @relation("WalletTransactions", fields: [walletId], references: [id])
-  payoutItems      PayoutItem[]     // 👈 back-relation from PayoutItem.transaction
+  payoutItems      PayoutItem[]
 
   @@index([userId])
   @@index([walletId])
+  @@index([type])           // ✨ NEW: Index for transaction type queries
+  @@index([status])         // ✨ NEW: Index for status queries
 }
 
 model Payout {
@@ -105,6 +126,9 @@ model Payout {
   // Relations
   wallet         Wallet        @relation("WalletPayouts", fields: [walletId], references: [id])
   items          PayoutItem[]
+
+  @@index([instructorId])   // ✨ NEW: Index for instructor queries
+  @@index([status])         // ✨ NEW: Index for status queries
 }
 
 model PayoutItem {
@@ -129,4 +153,7 @@ model PaymentGateway {
   isDefault   Boolean      @default(false)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@index([type])           // ✨ NEW: Index for gateway type
+  @@index([isActive])       // ✨ NEW: Index for active gateways
 }

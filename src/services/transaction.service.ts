@@ -6,10 +6,14 @@ import { TRANSACTION_TYPE_CONFIG } from '../types/transaction.types';
 import prisma from '../database/prismaClient';
 
 export class TransactionService {
+  private readonly PLATFORM_COMMISSION_RATE = 0.1; // 10%
+  private readonly PLATFORM_TAX_RATE = 0.05;       // 5%
+  private readonly DEFAULT_INSTRUCTOR_RATE = 1 - this.PLATFORM_COMMISSION_RATE - this.PLATFORM_TAX_RATE;
+
   /**
    * Create transaction and update wallet balance atomically
    * This ensures data consistency using Prisma transactions
-   */
+   */ 
   async createTransactionWithWalletUpdate(data: {
     type: TransactionType;
     amount: number;
@@ -169,65 +173,90 @@ export class TransactionService {
   /**
    * Update transaction status with wallet update if needed
    */
-  async updateTransactionStatus(
-    transactionId: number,
-    newStatus: PaymentStatus,
-    metadata?: any
-  ): Promise<any> {
-    return await prisma.$transaction(async (tx) => {
-      const transaction = await tx.transaction.findUnique({
-        where: { id: transactionId },
+   // 85%
+
+async updateTransactionStatus(
+  transactionId: number,
+  newStatus: PaymentStatus,
+  metadata?: any
+): Promise<any> {
+  return await prisma.$transaction(async (tx) => {
+    const transaction = await tx.transaction.findUnique({
+      where: { id: transactionId },
+    });
+
+    if (!transaction) throw new Error('Transaction not found');
+
+    const oldStatus = transaction.status;
+
+    // ✅ Update transaction status first
+    const updatedTransaction = await tx.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: newStatus,
+        metadata: metadata || transaction.metadata,
+      },
+    });
+
+    // ✅ Proceed only if payment just succeeded
+    if (oldStatus === PaymentStatus.PENDING && newStatus === PaymentStatus.SUCCESS) {
+      const totalAmount = new Decimal(transaction.amount);
+
+      // Calculate splits using constants
+      const instructorAmount = totalAmount.mul(this.DEFAULT_INSTRUCTOR_RATE);
+      const commissionAmount = totalAmount.mul(this.PLATFORM_COMMISSION_RATE);
+      const taxAmount = totalAmount.mul(this.PLATFORM_TAX_RATE);
+
+      // Fetch wallets
+      const instructorWallet = await tx.wallet.findFirst({
+        where: { type: 'INSTRUCTOR', userId: transaction.userId },
+      });
+      const commissionWallet = await tx.wallet.findFirst({
+        where: { type: 'PLATFORM_COMMISSION' },
+      });
+      const taxWallet = await tx.wallet.findFirst({
+        where: { type: 'PLATFORM_TAX' },
       });
 
-      if (!transaction) {
-        throw new Error('Transaction not found');
-      }
+      if (!instructorWallet) throw new Error('Instructor wallet not found');
+      if (!commissionWallet) throw new Error('Commission wallet not found');
+      if (!taxWallet) throw new Error('Tax wallet not found');
 
-      const oldStatus = transaction.status;
+      // ✅ Update wallet balances atomically
+      await tx.wallet.update({
+        where: { id: instructorWallet.id },
+        data: { balance: { increment: instructorAmount } },
+      });
 
-      // Update transaction status
-      const updatedTransaction = await tx.transaction.update({
-        where: { id: transactionId },
+      await tx.wallet.update({
+        where: { id: commissionWallet.id },
+        data: { balance: { increment: commissionAmount } },
+      });
+
+      await tx.wallet.update({
+        where: { id: taxWallet.id },
+        data: { balance: { increment: taxAmount } },
+      });
+
+      // ✅ Store breakdown in metadata for auditing
+      await tx.transaction.update({
+        where: { id: transaction.id },
         data: {
-          status: newStatus,
-          metadata: metadata || transaction.metadata,
+          metadata: {
+            ...(metadata || {}),
+            splitDetails: {
+              instructorAmount: instructorAmount.toString(),
+              commissionAmount: commissionAmount.toString(),
+              taxAmount: taxAmount.toString(),
+            },
+          },
         },
       });
+    }
 
-      // Handle wallet updates for status changes
-      if (oldStatus === PaymentStatus.PENDING && newStatus === PaymentStatus.SUCCESS) {
-        // Transaction succeeded - update wallet if applicable
-        const config = TRANSACTION_TYPE_CONFIG[transaction.type];
-
-        if (config.affectsWallet && transaction.walletId && config.operation) {
-          const wallet = await tx.wallet.findUnique({
-            where: { id: transaction.walletId },
-          });
-
-          if (wallet) {
-            // Check sufficient balance for deductions
-            if (config.operation === 'SUBTRACT') {
-              if (wallet.balance.lessThan(transaction.amount)) {
-                throw new Error('Insufficient wallet balance');
-              }
-            }
-
-            const prismaOperation = config.operation === 'ADD' ? 'increment' : 'decrement';
-            await tx.wallet.update({
-              where: { id: transaction.walletId },
-              data: {
-                balance: {
-                  [prismaOperation]: transaction.amount,
-                },
-              },
-            });
-          }
-        }
-      }
-
-      return updatedTransaction;
-    });
-  }
+    return updatedTransaction;
+  });
+}
 
   /**
    * Calculate net amount after deductions (commission, tax)

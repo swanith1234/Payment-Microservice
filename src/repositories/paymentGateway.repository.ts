@@ -51,7 +51,8 @@ export class PaymentGatewayRepository {
    */
   async findByType(type: string): Promise<PaymentGateway | null> {
     return await this.prisma.paymentGateway.findFirst({
-      where: { type, isActive: true },
+      where: { type, isDefault: true},
+      // where: { type, isActive: true },
     });
   }
 

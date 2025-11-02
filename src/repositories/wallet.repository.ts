@@ -1,4 +1,4 @@
-import { PrismaClient, Wallet } from '@prisma/client';
+import { PrismaClient, Wallet, WalletType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../database/prismaClient';
 
@@ -16,7 +16,7 @@ export class WalletRepository {
     userId?: number;
     balance?: Decimal;
     currency?: string;
-    type: string;
+    type: WalletType;
   }): Promise<Wallet> {
     return await this.prisma.wallet.create({
       data: {

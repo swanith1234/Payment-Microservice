@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Decimal } from '@prisma/client/runtime/library';
+import { WalletType } from '@prisma/client';
 import walletRepository from '../repositories/wallet.repository';
 import { CreateWalletDTO, UpdateWalletBalanceDTO, formatWalletResponse } from '../types/wallet.types';
 

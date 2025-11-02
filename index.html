@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test Razorpay Payment</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+
+<body>
+  <h2>Pay ₹5230 (Test Mode)</h2>
+  <button id="payBtn">Pay Now</button>
+
+  <script>
+    document.getElementById('payBtn').onclick = async function () {
+      try {
+        // 🧩 Step 1: Create order from backend
+        const orderResponse = await fetch('https://payment-microservice-4hfz.onrender.com/api/payments/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: 5000, // amount in rupees
+            userId: 1001,
+            walletId: 1,
+            metadata: { courseId: 101 }
+          })
+        });
+
+        const orderData = await orderResponse.json();
+        console.log('✅ Order Data:', orderData);
+
+        // Check if data is valid
+        if (!orderData?.data?.order || !orderData?.data?.transaction) {
+          alert('Order creation failed! Check backend logs.');
+          return;
+        }
+
+        const { order, transaction } = orderData.data;
+
+        // 🧩 Step 2: Configure Razorpay Checkout
+        const options = {
+          key: 'rzp_test_RXfFB86wMlv90D', // ✅ Your test key from Razorpay Dashboard
+          amount: order.amount * 100, // Razorpay expects amount in paise (if backend sends in rupees)
+          currency: order.currency,
+          name: 'SMAC Learning',
+          description: 'Course Payment (Test Mode)',
+          order_id: order.id, // Razorpay order ID from backend
+          handler: async function (response) {
+            console.log('✅ Payment Response:', response);
+
+            // 🧩 Step 3: Verify payment at backend
+            const verifyResponse = await fetch('http://localhost:3000/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                userId: 1001,
+                walletId: 1
+              })
+            });
+
+            const verifyData = await verifyResponse.json();
+            console.log('🔍 Verify Response:', verifyData);
+
+            if (verifyData.verified || verifyData.success) {
+              alert('✅ Payment successful (Test mode)!');
+            } else {
+              alert('❌ Payment verification failed!');
+              console.error('Verification error:', verifyData);
+            }
+          },
+          prefill: {
+            name: 'John Doe',
+            email: 'john@example.com',
+            contact: '9999999999'
+          },
+          notes: {
+            purpose: 'Course Payment Test'
+          },
+          theme: {
+            color: '#3399cc'
+          }
+        };
+
+        // 🧩 Step 4: Open Razorpay Checkout
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+          console.error('❌ Payment Failed:', response.error);
+          alert('Payment failed! Please try again.');
+        });
+        rzp.open();
+
+      } catch (err) {
+        console.error('⚠️ Error during payment process:', err);
+        alert('Something went wrong. Check console for details.');
+      }
+    };
+  </script>
+</body>
+
+</html>

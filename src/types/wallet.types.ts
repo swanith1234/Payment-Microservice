@@ -1,11 +1,12 @@
 import { Decimal } from '@prisma/client/runtime/library';
+import { WalletType } from '@prisma/client';
 
 // Request DTOs
 export interface CreateWalletDTO {
   userId?: number;
   balance?: number;
   currency?: string;
-  type: string;
+  type: WalletType;
 }
 
 export interface UpdateWalletBalanceDTO {
@@ -19,7 +20,7 @@ export interface WalletResponseDTO {
   userId: number | null;
   balance: string; // Decimal as string for JSON serialization
   currency: string;
-  type: string;
+  type: WalletType;
   createdAt: Date;
   updatedAt: Date;
 }

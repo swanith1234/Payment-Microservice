@@ -62,7 +62,7 @@ export class GatewayFactoryService {
     if (!gateway.isActive) {
       throw new Error(`${type} gateway is not active`);
     }
-
+    console.log('Retrieved gateway:', gateway);
     // Check cache
     if (this.providers.has(gateway.id)) {
       return {
